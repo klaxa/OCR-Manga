@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 import argparse
 import sys
 import re
@@ -14,7 +14,6 @@ from myougiden import search
 from myougiden.color import fmt
 
 def run(query):
-
 	ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 
 	ap.add_argument('--version', action='store_true',
@@ -49,22 +48,23 @@ def run(query):
 		            choices=('whole', 'beginning', 'word', 'partial', 'auto'),
 		            help='''How much of the field should the query match:
 	 - whole: Query must match the entire field.
-	 - word: Query must match whole word (at present only works for English;
-		     treated as 'whole' for kanji or reading fields.)
 	 - beginning: Query must match the beginning of the field.
+	 - word: Query must match whole word (at present
+	   only works for English; treated as 'whole' for
+	   kanji or reading fields.)
 	 - partial: Query may match anywhere, even partially
 	   inside words.
 	 - auto (default): Try all four, and return the
 	   first to match something.''')
 
-	ag.add_argument('-W', '--whole', action='store_const', const='whole', dest='extent',
+	ag.add_argument('-w', '--whole', action='store_const', const='whole', dest='extent',
 		            help='''Equivalent to --extent=whole.''')
-
-	ag.add_argument('-w', '--word', action='store_const', const='word', dest='extent',
-		            help='''Equivalent to --extent=word.''')
 
 	ag.add_argument('-b', '--beginning', action='store_const', const='beginning', dest='extent',
 		            help='''Equivalent to --extent=beginning.''')
+
+	ag.add_argument('--word', action='store_const', const='word', dest='extent',
+		            help='''Equivalent to --extent=word.''')
 
 	ag.add_argument('-p', '--partial', action='store_const', const='partial', dest='extent',
 		            help='Equivalent to --extent=partial.')
@@ -73,8 +73,9 @@ def run(query):
 	entries marked as ‘(P)’)''')
 
 
+
 	ag = ap.add_argument_group('Output control')
-	ag.add_argument('--output-mode', '--format', default='auto', choices=('human', 'tab', 'auto'),
+	ag.add_argument('--output-mode', default='tab', choices=('human', 'tab', 'auto'),
 		            help='''Output mode; one of:
 	 - human: Multiline human-readable output.
 	 - tab: One-line tab-separated.
@@ -105,8 +106,6 @@ def run(query):
 		            dest='out_romaji', default=None,
 		            help='Convert reading to Kunrei rōmaji in output.')
 
-	ag.add_argument('--debug', action='store_const', const=True, default=False)
-
 	ag = ap.add_argument_group('Abbreviations help')
 	ag.add_argument('--list-abbrevs', action='store_true',
 		    help='''List all abbreviations.''')
@@ -114,13 +113,14 @@ def run(query):
 		    help='''Print meaning of an abbreviation.''')
 
 
-	ap.add_argument('query', help='Text to look for.', metavar='QUERY',
-		            nargs=argparse.REMAINDER)
+	ap.add_argument('query', help='Text to look for.', metavar='QUERY', nargs='*')
+
 
 	args = ap.parse_args()
-
 	args.output_mode = 'tab'
 	args.query = query
+	args.color = 'no'
+
 	# handle output guesswork.
 	if args.output_mode == 'auto':
 		if sys.stdout.isatty():
@@ -144,18 +144,11 @@ def run(query):
 		else:
 		    color.style = color.LIGHTBG
 
-	if args.debug:
-		common.debug = True
-
-
-	args.query_s = ' '.join(args.query)
+	args.query = ' '.join(args.query)
 
 	# case sensitivity must be handled before opening db
 	if not args.case_sensitive:
-		# debian sqlite currently doesn't support enhanced query syntax
-		# minus_keywords = re.sub('(NOT|OR|AND)', '', args.query_s)
-		# if (re.search("[A-Z]", minus_keywords)):
-		if (re.search("[A-Z]", args.query_s)):
+		if re.search("[A-Z]", args.query):
 		    args.case_sensitive = True
 
 	if not config:
@@ -210,25 +203,122 @@ def run(query):
 		    print('Not found!')
 		    sys.exit(0)
 
-	if args.query == []:
+	# handle query guesswork
+	if args.query == '':
 		ap.print_help()
 		sys.exit(2)
 
-	conditions = search.generate_search_conditions(args)
-	chosen_conds, ent_seqs = search.guess(cur, conditions)
+	# 'word' doesn't work for Jap. anyway, and 'whole' is much faster.
+	if args.extent == 'word' and args.field in ('kanji', 'reading'):
+		args.extent = 'whole'
 
-	if chosen_conds:
+
+	# first, we need a dictionary of options with only keys understood
+	# by search_by().
+	search_args = vars(args).copy() # turn Namespace to dict
+	# keep only interesting keys
+	for k in list(search_args.keys()):
+		if k not in ('field', 'query', 'extent', 'regexp', 'case_sensitive', 'frequent'):
+		    del search_args[k]
+
+	# we'll iterate over all required 'field' and 'extent' conditions.
+	#
+	# for code clarity, we always use a list of search conditions,
+	# even if the size of the list is 1.
+
+	if args.field == 'auto':
+		if tt.is_latin(args.query):
+		    # if pure alphabet, try as English first, then as rōmaji
+		    fields = ('gloss', 'reading', 'kanji')
+		elif tt.is_romaji(args.query):
+		    # latin with special chars; probably rōmaji
+		    fields = ('reading', 'gloss', 'kanji')
+		elif tt.is_kana(args.query):
+		    fields = ('reading', 'kanji', 'gloss')
+		else:
+		    fields = ('kanji', 'reading', 'gloss')
+	else:
+		fields = (args.field,)
+
+	if args.extent != 'auto':
+		extents = (args.extent,)
+	else:
+		extents = ('whole', 'word', 'partial')
+
+	if args.regexp:
+		regexp_flags = (True,)
+	elif tt.has_regexp_special(args.query):
+		regexp_flags = (False, True)
+	else:
+		regexp_flags = (False,)
+
+	conditions = []
+	for regexp in regexp_flags:
+		for extent in extents:
+		    for field in fields:
+
+		        # the useless combination; we'll avoid it to avoid wasting
+		        # time.
+		        if extent == 'word' and field != 'gloss':
+
+		            if args.extent == 'auto':
+		                # we're trying all possibilities, so we can just
+		                # skip this one.  other extents were/will be tried
+		                # elsewhen in the loop.
+		                continue
+		            else:
+		                # not trying all possibilities; this is our only
+		                # pass in this field, so let's adjust it.
+		                sa = search_args.copy()
+		                sa['extent'] = 'whole'
+		        else:
+		            # simple case.
+		            sa = search_args.copy()
+		            sa['extent'] = extent
+
+		        sa['field'] = field
+		        sa['regexp'] = regexp
+
+		        conditions.append(sa)
+
+	# deal with rōmaji queries
+	if (args.field in ('auto', 'reading') and tt.is_romaji(args.query)):
+
+		if re.search('[A-Z]', args.query):
+		    kana_guess=(romkan.to_katakana, romkan.to_hiragana)
+		else:
+		    kana_guess=(romkan.to_hiragana, romkan.to_katakana)
+
+		new_conditions = conditions[:]
+		for oldcond in conditions:
+		    if oldcond['field'] == 'reading':
+		        for kanafn in kana_guess:
+		            # the query looks like romaji and the field is reading.
+		            # so we try it converted to kana _first_, then try as-is.
+		            # thus the insert.
+
+		            for romaji in tt.expand_romaji(oldcond['query']):
+		                newcond = oldcond.copy()
+		                newcond['query'] = kanafn(romaji)
+		                new_conditions.insert(new_conditions.index(oldcond),
+		                                      newcond)
+		conditions = new_conditions
+
+
+	chosen_search, ent_seqs = search.guess(cur, conditions)
+
+	if chosen_search:
 		entries = [orm.fetch_entry(cur, ent_seq) for ent_seq in ent_seqs]
 
 		if args.output_mode == 'human':
-		    out = [ entry.format_human(search_conds=chosen_conds,
+		    out = [ entry.format_human(search_params=chosen_search,
 		                                  romajifn=args.out_romaji)
 		              for entry in entries]
 
 		    out = ("\n\n".join(out)) + "\n"
 
 		elif args.output_mode == 'tab':
-		    out = [ entry.format_tsv(search_conds=chosen_conds,
+		    out = [ entry.format_tsv(search_params=chosen_search,
 		                             romajifn=args.out_romaji)
 		           for entry in entries]
 
