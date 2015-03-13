@@ -8,6 +8,10 @@ Dependencies
   - only tested with tesseract
 - [myougiden](https://github.com/leoboiko/myougiden "myougiden") 
 
+Screenshot
+----------
+
+![Screenshot of Yurumon](http://dedi.klaxa.eu/public/yurumon_ocr.jpg)
 
 Demos
 -----
