@@ -9,6 +9,9 @@ import threading
 import argparse
 tool = pyocr.get_available_tools()[0]
 
+special_chars = "{}[]!\"§$%&/()\n\\.,-~ "
+
+
 def best_fit(width, height, image):
 	(x, y) = image.size
 	scale = width / x
@@ -24,7 +27,7 @@ class LookupThread(threading.Thread):
 		image, app = (self._args)
 		try:
 			string = app.image_to_dict(image)
-			if not self.dirty:
+			if not self.dirty and string is not None:
 				app.draw_dict(string)
 			
 		finally:
@@ -102,12 +105,13 @@ class Application(tk.Frame):
 		self.rotation = (self.rotation + 1) % 4
 		self.update_screen()
 	
-	def clear_box(self, event):
+	def clear_box(self, event=None):
 		self.drawing_box = False		
-		if self.box_oid != 0:
-			self.frame.delete(self.box_oid)
+		#if self.box_oid != 0:
+		#	self.frame.delete(self.box_oid)
 		self.frame.delete("text")
-		self.frame.delete("selection")
+		#self.frame.delete("selection")
+	
 	def start_drawing_box(self, event):
 		textbox = self.frame.bbox("text")
 		selectionbox = self.frame.bbox(self.box_oid)
@@ -117,7 +121,9 @@ class Application(tk.Frame):
 				mx = event.x
 				my = event.y
 				if mx > x and mx < x2 and my > y and my < y2:
-					self.clear_box(None)
+					self.clear_box()
+					if self.box_oid != 0:
+						self.frame.delete(self.box_oid)
 					return
 		
 		self.drawing_box = True
@@ -171,10 +177,10 @@ class Application(tk.Frame):
 		self.box_oid = self.frame.create_rectangle(x, y, x2, y2, outline="#00AA00", fill="#00AA00", stipple="gray50")
 	
 	def change_image(self, amount):
-		self.clear_box(None)
 		new_page = self.current_page + amount
 		if new_page < 0 or new_page > len(self.images) - 2:
 			return
+		self.clear_box()
 		self.current_page = new_page
 		image = Image.open(self.images[self.current_page])
 		if self.rotation != 0:
@@ -200,19 +206,30 @@ class Application(tk.Frame):
 		size = image.size
 		image = image.resize((size[0] * 2, size[1] * 2), Image.BILINEAR)
 		string = tool.image_to_string(image, lang="jpn", builder=pyocr.builders.TextBuilder(5))
-		string = string.strip()
+		string = string_filtered = "".join([c for c in string.strip() if c not in special_chars])
+		self.clear_box()
+		self.draw_dict("Looking up " + string)
 		if string != "":
-			dict_entry = myougiden_api.run([string])
+			dict_entry = myougiden_api.run(string)
 		else:
 			dict_entry = None
-			string = "No character recognized"
 		#image.save("/tmp/export.png")
-		if dict_entry is not None and string != "No character recognized":
+		if dict_entry is not None and string != "":
 			string = "\n".join(dict_entry)
 		else:
-			dict_entry = myougiden_api.run(string[:-1])
-			dict_entry2 = myougiden_api.run(string[1:])
-			dict_entry3 = myougiden_api.run(string[1:])
+			self.clear_box()
+			self.draw_dict(string + " not recognized, looking up:\n" + string[:-1].strip())
+			dict_entry = myougiden_api.run(string[:-1].strip())
+			if self.box_oid == 0:
+				return None
+			self.draw_dict(string + " not recognized, looking up:\n" + string[1:].strip())
+			if self.box_oid == 0:
+				return None
+			dict_entry2 = myougiden_api.run(string[1:].strip())
+			self.draw_dict(string + " not recognized, looking up:\n" + string[1:-1].strip())
+			if self.box_oid == 0:
+				return None
+			dict_entry3 = myougiden_api.run(string[1:-1].strip())
 			result = ""
 			result2 = ""
 			result3 = ""
@@ -223,6 +240,9 @@ class Application(tk.Frame):
 			if dict_entry2 is not None:
 				result3 = "\n".join(dict_entry3)
 			string = result + result2 + result3
+		if string == "":
+			self.clear_box()	
+			self.draw_dict("Nothing recognized")
 		print(string)
 		return string
 	

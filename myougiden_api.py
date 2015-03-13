@@ -118,8 +118,11 @@ def run(query):
 
 	args = ap.parse_args()
 	args.output_mode = 'tab'
-	args.query = query
+	if len(query) == 0:
+		return None
+	args.query = [query]
 	args.color = 'no'
+	print(query)
 
 	# handle output guesswork.
 	if args.output_mode == 'auto':
