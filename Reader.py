@@ -6,6 +6,7 @@ import pyocr
 import pyocr.builders
 import myougiden_api
 import threading
+import argparse
 tool = pyocr.get_available_tools()[0]
 
 def best_fit(width, height, image):
@@ -33,8 +34,9 @@ class LookupThread(threading.Thread):
 
 
 class Application(tk.Frame):
-	def __init__(self, master=None):
+	def __init__(self, images, master=None):
 		tk.Frame.__init__(self, master)
+		self.images = images
 		if os.path.isfile("last_page"):
 			last_page = open("last_page", "r")
 			try:
@@ -171,10 +173,10 @@ class Application(tk.Frame):
 	def change_image(self, amount):
 		self.clear_box(None)
 		new_page = self.current_page + amount
-		if new_page < 0 or new_page > len(images) - 2:
+		if new_page < 0 or new_page > len(self.images) - 2:
 			return
 		self.current_page = new_page
-		image = Image.open(images[self.current_page])
+		image = Image.open(self.images[self.current_page])
 		if self.rotation != 0:
 			image = image.rotate(-90 * self.rotation)
 		(width, height) = (self.frame.winfo_width(), self.frame.winfo_height())
@@ -233,11 +235,18 @@ class Application(tk.Frame):
 		self.frame.tag_lower(self.textbox, self.text)
 		
 
-directory = '/home/klaxa/Images/manga/'
+def main():
+	parser = argparse.ArgumentParser(description="OCR Manga Reader")
+	parser.add_argument('directory', metavar='directory')
 
-images = sorted([os.path.join(directory, filename) for filename in os.listdir('/home/klaxa/Images/manga/')])
-app = Application()
-app.master.title('Yurimon reader')
-app.update_screen()
-app.mainloop()
+	args = parser.parse_args()
+	images = sorted([os.path.join(args.directory, filename) for filename in os.listdir(args.directory)])
+	app = Application(images)
+	app.master.title('Yurimon reader')
+	app.update_screen()
+	app.mainloop()
+
+if __name__ == "__main__":
+	main()
+
 
