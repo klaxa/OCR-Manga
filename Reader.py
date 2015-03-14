@@ -6,6 +6,7 @@ import pyocr
 import pyocr.builders
 import myougiden_api
 from multiprocessing import Process, Queue
+import queue # needed for multiprocessing.Queue singlas
 import argparse
 import textwrap
 
