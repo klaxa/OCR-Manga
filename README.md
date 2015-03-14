@@ -13,6 +13,7 @@ Screenshots
 
 ![Screenshot of Yurumon](http://dedi.klaxa.eu/public/yurumon_ocr.jpg)
 ![Screenshot of Yurumon](http://dedi.klaxa.eu/public/yurumon_ocr_color.png)
+![Screenshot of Yurumon](http://dedi.klaxa.eu/public/yurumon_dark.png)
 
 Demos
 -----
