@@ -5,7 +5,7 @@ import os
 import pyocr
 import pyocr.builders
 import myougiden_api
-import threading
+from multiprocessing import Process, Queue
 import argparse
 import textwrap
 
@@ -13,11 +13,12 @@ tool = pyocr.get_available_tools()[0]
 
 special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
 colors = dict()
-colors["35"] = "#cd00cd"
+colors["0"] = "#ffffff"
 colors["31"] = "#cd0000"
-colors["33"] = "#cdcd00"
 colors["32"] = "#00cd00"
-colors["0"] = "#000000"
+colors["33"] = "#cdcd00"
+colors["35"] = "#cd00cd"
+colors["36"] = "#00cdcd"
 
 def best_fit(width, height, image):
 	(x, y) = image.size
@@ -26,23 +27,6 @@ def best_fit(width, height, image):
 		scale = height / y
 	#print(scale)
 	return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
-
-
-class LookupThread(threading.Thread):
-	def run(self):
-		self.dirty = False
-		image, app = (self._args)
-		try:
-			string = app.image_to_dict(image)
-			if not self.dirty and string is not None:
-				app.clear_box()
-				app.draw_dict(string)
-			
-		finally:
-			# Avoid a refcycle if the thread is running a function with
-			# an argument that has a member that points to the thread.
-			del self._target, self._args, self._kwargs
-
 
 class Application(tk.Frame):
 	def __init__(self, images, master=None):
@@ -69,14 +53,44 @@ class Application(tk.Frame):
 		self.rotation = 0
 		self.fullscreen = False
 		self.text = []
-
+		self.draw_queue = Queue()
+		self.after(100, self.check_queue)
+	
+	def kill_lookup(self):
+		if self.lookup is not None and self.lookup.is_alive():
+			try:
+				self.lookup.terminate()
+			except:
+		#self.frame.delete("selection")
+				pass
+	
+	def check_queue(self):
+		lookup = ""
+		try:
+			lookup = self.draw_queue.get(block=False)
+		except queue.Empty:
+			pass
+		if lookup != "":
+			self.clear_box()
+			self.draw_dict(lookup)
+		self.after(100, self.check_queue)
+	
+	def lookup_entry(self, image, coords):
+		ocr_image = image.crop(coords)
+		string = self.image_to_dict(ocr_image)
+		if string is not None:
+			self.draw(string)
+	
+	def draw(self, string):
+		self.draw_queue.put(string)
+		
 	def createWidgets(self):
 		#self.quitButton = tk.Button(self, text='Quit',
 		#	command=self.quit)
 		#self.quitButton.grid()
 		self.update()
 		(width, height) = (self.winfo_width(), self.winfo_height())
-		self.frame = tk.Canvas(self, width=width, height=height, cursor="tcross")
+		self.frame = tk.Canvas(self, width=width, height=height, cursor="tcross", background="black")
 		self.frame.pack(fill=tk.BOTH)
 		self.frame.bind('<Left>', self.next_image)
 		self.frame.bind('<Right>', self.prev_image)
@@ -119,9 +133,9 @@ class Application(tk.Frame):
 		#if self.box_oid != 0:
 		#	self.frame.delete(self.box_oid)
 		self.frame.delete("text")
-		#self.frame.delete("selection")
 	
 	def start_drawing_box(self, event):
+		self.kill_lookup()
 		textbox = self.frame.bbox("text")
 		selectionbox = self.frame.bbox(self.box_oid)
 		for bbox in textbox, selectionbox:
@@ -145,8 +159,8 @@ class Application(tk.Frame):
 		self.frame.addtag_withtag("selection", self.box_oid)
 	
 	def stop_drawing_box(self, event):
+		self.drawing_box = False
 		try:
-			self.drawing_box = False
 			(ix, iy, ix2, iy2) = self.frame.bbox(self.current_page_oid)
 			(bx, by, bx2, by2) = self.frame.bbox(self.box_oid)
 			px = (bx - ix) / (ix2 - ix)
@@ -154,20 +168,17 @@ class Application(tk.Frame):
 			px2 = (bx2 - ix) / (ix2 - ix)
 			py2 = (by2 - iy)/ (iy2 - iy)
 			#print("%f, %f, %f, %f" % (px, py, px2, py2))
-		
+	
 			(width, height) = self.current_page_image.size
 			cx = int(px * width)
 			cx2 = int(px2 * width)
 			cy = int(py * height)
 			cy2 = int(py2 * height)
 			#print("%d, %d, %d, %d" % (cx, cy, cx2, cy2))
-			ocr_image = self.current_page_image.crop((cx, cy, cx2, cy2))
+			self.lookup = Process(target=self.lookup_entry, args=(self.current_page_image, (cx, cy, cx2, cy2)))
 			#draw = ImageDraw.Draw(self.current_page_image)
 			#draw.rectangle([cx, cy, cx2, cy2], outline="black")
 			#ocr_image = image
-			if self.lookup is not None:
-				self.lookup.dirty = True
-			self.lookup = LookupThread(args=(ocr_image,self))
 			self.lookup.start()
 			#self.image_to_dict(ocr_image)
 		except:
@@ -186,12 +197,13 @@ class Application(tk.Frame):
 		self.box_oid = self.frame.create_rectangle(x, y, x2, y2, outline="#00AA00", fill="#00AA00", stipple="gray50")
 	
 	def change_image(self, amount):
+		self.kill_lookup()
 		new_page = self.current_page + amount
 		if new_page < 0 or new_page > len(self.images) - 2:
 			return
 		self.clear_box()
 		self.current_page = new_page
-		self.master.title("Yurimon reader (%d/%d)" % (new_page, len(self.images)))
+		self.master.title("Yurumon reader (%d/%d)" % (new_page, len(self.images)))
 		image = Image.open(self.images[self.current_page])
 		if self.rotation != 0:
 			image = image.rotate(-90 * self.rotation)
@@ -199,7 +211,7 @@ class Application(tk.Frame):
 		image = best_fit(width, height, image)
 		self.tkimage = ImageTk.PhotoImage(image)
 		self.frame.delete(self.current_page_oid)
-		self.current_page_oid = self.frame.create_image(int(width/2), 0, image=self.tkimage, anchor=tk.N)
+		self.current_page_oid = self.frame.create_image(int(width/2), int(height/2), image=self.tkimage)
 		self.current_page_image = image
 		last_page = open("last_page", "w")
 		last_page.write(str(self.current_page))
@@ -218,8 +230,7 @@ class Application(tk.Frame):
 		image = image.resize((size[0] * 3, size[1] * 3), Image.BICUBIC)
 		string = tool.image_to_string(image, lang="jpn", builder=pyocr.builders.TextBuilder(5))
 		string = string_filtered = "".join([c for c in string.strip() if c not in special_chars])
-		self.clear_box()
-		self.draw_dict("Looking up " + string)
+		self.draw("Looking up " + string)
 		if string != "":
 			dict_entry = myougiden_api.run(string)
 		else:
@@ -228,16 +239,15 @@ class Application(tk.Frame):
 		if dict_entry is not None and string != "":
 			string = dict_entry.strip("\n")
 		else:
-			self.clear_box()
-			self.draw_dict(string + " not recognized, looking up:\n" + string[:-1].strip())
+			self.draw(string + " not recognized, looking up:\n" + string[:-1].strip())
 			dict_entry = myougiden_api.run(string[:-1].strip())
 			if self.box_oid != bid:
 				return None
-			self.draw_dict(string + " not recognized, looking up:\n" + string[1:].strip())
+			self.draw(string + " not recognized, looking up:\n" + string[1:].strip())
 			if self.box_oid != bid:
 				return None
 			dict_entry2 = myougiden_api.run(string[1:].strip())
-			self.draw_dict(string + " not recognized, looking up:\n" + string[1:-1].strip())
+			self.draw(string + " not recognized, looking up:\n" + string[1:-1].strip())
 			if self.box_oid != bid:
 				return None
 			dict_entry3 = myougiden_api.run(string[1:-1].strip())
@@ -254,7 +264,7 @@ class Application(tk.Frame):
 			string = string.strip("\n")
 		if string == "":
 			string = "Nothing recognized"
-		print(string)
+		#print(string)
 		return textwrap.fill(string, 120, replace_whitespace=False, drop_whitespace=False)
 	
 	def draw_dict(self, string):
@@ -278,7 +288,7 @@ class Application(tk.Frame):
 			self.text.append(self.frame.create_text(margin + xoff, margin + yoff, fill=color, anchor=tk.NW, text=text, font="14"))
 			self.frame.addtag_withtag("text", self.text[-1])
 		(x, y, x2, y2) = self.frame.bbox("text")
-		self.textbox = self.frame.create_rectangle(x, y, x2, y2, fill="white", outline="white")
+		self.textbox = self.frame.create_rectangle(x - 1, y - 1, x2, y2, fill="black", outline="white")
 		self.frame.addtag_withtag("text", self.textbox)
 		self.frame.tag_lower(self.textbox, self.text[0])
 		
