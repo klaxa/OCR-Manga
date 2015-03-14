@@ -7,10 +7,16 @@ import pyocr.builders
 import myougiden_api
 import threading
 import argparse
+
 tool = pyocr.get_available_tools()[0]
 
-special_chars = "{}[]!\"§$%&/()\n\\.,-~ "
-
+special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
+colors = dict()
+colors["35"] = "#cd00cd"
+colors["31"] = "#cd0000"
+colors["33"] = "#cdcd00"
+colors["32"] = "#00cd00"
+colors["0"] = "#000000"
 
 def best_fit(width, height, image):
 	(x, y) = image.size
@@ -28,6 +34,7 @@ class LookupThread(threading.Thread):
 		try:
 			string = app.image_to_dict(image)
 			if not self.dirty and string is not None:
+				app.clear_box()
 				app.draw_dict(string)
 			
 		finally:
@@ -60,6 +67,7 @@ class Application(tk.Frame):
 		self.tkimage = None
 		self.rotation = 0
 		self.fullscreen = False
+		self.text = []
 
 	def createWidgets(self):
 		#self.quitButton = tk.Button(self, text='Quit',
@@ -182,6 +190,7 @@ class Application(tk.Frame):
 			return
 		self.clear_box()
 		self.current_page = new_page
+		self.master.title("Yurimon reader (%d/%d)" % (new_page, len(self.images)))
 		image = Image.open(self.images[self.current_page])
 		if self.rotation != 0:
 			image = image.rotate(-90 * self.rotation)
@@ -203,8 +212,9 @@ class Application(tk.Frame):
 		self.change_image(1)
 		
 	def image_to_dict(self, image):
+		bid = self.box_oid
 		size = image.size
-		image = image.resize((size[0] * 2, size[1] * 2), Image.BILINEAR)
+		image = image.resize((size[0] * 3, size[1] * 3), Image.BICUBIC)
 		string = tool.image_to_string(image, lang="jpn", builder=pyocr.builders.TextBuilder(5))
 		string = string_filtered = "".join([c for c in string.strip() if c not in special_chars])
 		self.clear_box()
@@ -215,45 +225,94 @@ class Application(tk.Frame):
 			dict_entry = None
 		#image.save("/tmp/export.png")
 		if dict_entry is not None and string != "":
-			string = "\n".join(dict_entry)
+			string = dict_entry.strip("\n")
 		else:
 			self.clear_box()
 			self.draw_dict(string + " not recognized, looking up:\n" + string[:-1].strip())
 			dict_entry = myougiden_api.run(string[:-1].strip())
-			if self.box_oid == 0:
+			if self.box_oid != bid:
 				return None
 			self.draw_dict(string + " not recognized, looking up:\n" + string[1:].strip())
-			if self.box_oid == 0:
+			if self.box_oid != bid:
 				return None
 			dict_entry2 = myougiden_api.run(string[1:].strip())
 			self.draw_dict(string + " not recognized, looking up:\n" + string[1:-1].strip())
-			if self.box_oid == 0:
+			if self.box_oid != bid:
 				return None
 			dict_entry3 = myougiden_api.run(string[1:-1].strip())
 			result = ""
 			result2 = ""
 			result3 = ""
 			if dict_entry is not None:
-				result = "\n".join(dict_entry)
+				result = dict_entry
 			if dict_entry2 is not None:
-				result2 = "\n".join(dict_entry2)
+				result2 = dict_entry2
 			if dict_entry2 is not None:
-				result3 = "\n".join(dict_entry3)
+				result3 = dict_entry3
 			string = result + result2 + result3
+			string = string.strip("\n")
 		if string == "":
-			self.clear_box()	
-			self.draw_dict("Nothing recognized")
+			string = "Nothing recognized"
 		print(string)
 		return string
 	
 	def draw_dict(self, string):
-		self.text = self.frame.create_text(5, 5, width=500, anchor=tk.NW, text=string)
-		self.frame.addtag_withtag("text", self.text)
-		(x, y, x2, y2) = self.frame.bbox(self.text)
+		words = parse_color_string(string)
+		self.text = []
+		margin = 5
+		xoff = 0
+		yoff = 0
+		for w in words:
+			(color, text) = w
+			if len(self.text) != 0:
+				(x, y, x2, y2) = self.frame.bbox(self.text[-1])
+				if text == "\n":
+					(a, b, c, yoff) = self.frame.bbox("text")
+					xoff = 0
+					yoff -= 1
+					text = ""
+				else:
+					xoff = x2
+					
+			self.text.append(self.frame.create_text(margin + xoff, margin + yoff, width=(500 - xoff), fill=color, anchor=tk.NW, text=text, font="14"))
+			self.frame.addtag_withtag("text", self.text[-1])
+		(x, y, x2, y2) = self.frame.bbox("text")
 		self.textbox = self.frame.create_rectangle(x, y, x2, y2, fill="white", outline="white")
 		self.frame.addtag_withtag("text", self.textbox)
-		self.frame.tag_lower(self.textbox, self.text)
+		self.frame.tag_lower(self.textbox, self.text[0])
 		
+
+def parse_color_string(string):
+	escape = "\x1b"
+	parts = string.split(escape)
+	color_tuples = []
+	new_parts = []
+	for part in parts:
+		if "\n" in part:
+			more_parts = part.split("\n")
+			for p in more_parts	:
+				if p != "":
+					new_parts.append(p)
+					new_parts.append("\n")
+		else:
+			new_parts.append(part)
+	parts = new_parts
+	for part in parts:
+		if part.startswith("["):
+			temp = part.split("m")
+			color = temp[0].strip("[")
+			text = "m".join(temp[1:])
+			if len(text) == 0:
+				continue
+			try:
+				color_tuples.append((colors[color], text))
+			except KeyError:
+				color_tuples.append((colors["0"], text))
+		else:
+			if len(part) == 0:
+				continue
+			color_tuples.append((colors["0"], part))
+	return color_tuples
 
 def main():
 	parser = argparse.ArgumentParser(description="OCR Manga Reader")

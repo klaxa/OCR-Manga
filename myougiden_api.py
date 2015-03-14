@@ -117,11 +117,12 @@ def run(query):
 
 
 	args = ap.parse_args()
-	args.output_mode = 'tab'
+	args.output_mode = 'human'
 	if len(query) == 0:
 		return None
 	args.query = [query]
-	args.color = 'no'
+	args.color = 'yes'
+	args.background = 'dark'
 	print(query)
 
 	# handle output guesswork.
