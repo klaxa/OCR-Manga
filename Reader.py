@@ -7,6 +7,7 @@ import pyocr.builders
 import myougiden_api
 import threading
 import argparse
+import textwrap
 
 tool = pyocr.get_available_tools()[0]
 
@@ -254,7 +255,7 @@ class Application(tk.Frame):
 		if string == "":
 			string = "Nothing recognized"
 		print(string)
-		return string
+		return textwrap.fill(string, 120, replace_whitespace=False, drop_whitespace=False)
 	
 	def draw_dict(self, string):
 		words = parse_color_string(string)
@@ -274,7 +275,7 @@ class Application(tk.Frame):
 				else:
 					xoff = x2
 					
-			self.text.append(self.frame.create_text(margin + xoff, margin + yoff, width=(500 - xoff), fill=color, anchor=tk.NW, text=text, font="14"))
+			self.text.append(self.frame.create_text(margin + xoff, margin + yoff, fill=color, anchor=tk.NW, text=text, font="14"))
 			self.frame.addtag_withtag("text", self.text[-1])
 		(x, y, x2, y2) = self.frame.bbox("text")
 		self.textbox = self.frame.create_rectangle(x, y, x2, y2, fill="white", outline="white")
