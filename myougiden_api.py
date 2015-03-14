@@ -123,31 +123,8 @@ def run(query):
 	args.query = [query]
 	args.color = 'yes'
 	args.background = 'dark'
-	print(query)
 
-	# handle output guesswork.
-	if args.output_mode == 'auto':
-		if sys.stdout.isatty():
-		    args.output_mode = 'human'
-		else:
-		    args.output_mode = 'tab'
-
-	if args.color == 'auto':
-		if sys.stdout.isatty():
-		    args.color = 'yes'
-		else:
-		    args.color = 'no'
-
-	color.use_color =  (args.color == 'yes')
-	if color.use_color:
-		if args.background == 'auto':
-		    args.background = color.guess_background() or 'dark'
-
-		if args.background == 'dark':
-		    pass # default
-		else:
-		    color.style = color.LIGHTBG
-
+	color.use_color = True
 	args.query = ' '.join(args.query)
 
 	# case sensitivity must be handled before opening db
@@ -327,17 +304,6 @@ def run(query):
 		           for entry in entries]
 
 		    #out = ("\n".join(out)) + "\n"
-
-		if sys.stdout.isatty():
-		    pager = common.color_pager()
-		    if pager:
-		        if out.count("\n") > common.get_terminal_size()[1]:
-		            import subprocess
-		            import shlex
-		            p = subprocess.Popen(shlex.split(pager), stdin=subprocess.PIPE)
-		            p.communicate(out.encode())
-		            p.wait()
-		            sys.exit(0)
 
 		return out
 	else:
