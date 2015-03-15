@@ -102,6 +102,7 @@ class Application(tk.Frame):
 		self.frame.bind('<ButtonRelease-1>', self.stop_drawing_box)
 		self.frame.bind('<Double-Button-1>', self.clear_box)
 		self.frame.bind('<Button-2>', self.side_tap)
+		self.frame.bind('<Button-3>', self.side_tap)
 		self.frame.bind('<Motion>', self.draw_box)
 		self.frame.bind('<F11>', self.toggle_fullscreen)
 	
@@ -239,30 +240,6 @@ class Application(tk.Frame):
 		#image.save("/tmp/export.png")
 		if dict_entry is not None and string != "":
 			string = dict_entry.strip("\n")
-		else:
-			self.draw(string + " not recognized, looking up:\n" + string[:-1].strip())
-			dict_entry = myougiden_api.run(string[:-1].strip())
-			if self.box_oid != bid:
-				return None
-			self.draw(string + " not recognized, looking up:\n" + string[1:].strip())
-			if self.box_oid != bid:
-				return None
-			dict_entry2 = myougiden_api.run(string[1:].strip())
-			self.draw(string + " not recognized, looking up:\n" + string[1:-1].strip())
-			if self.box_oid != bid:
-				return None
-			dict_entry3 = myougiden_api.run(string[1:-1].strip())
-			result = ""
-			result2 = ""
-			result3 = ""
-			if dict_entry is not None:
-				result = dict_entry
-			if dict_entry2 is not None:
-				result2 = dict_entry2
-			if dict_entry2 is not None:
-				result3 = dict_entry3
-			string = result + result2 + result3
-			string = string.strip("\n")
 		if string == "":
 			string = "Nothing recognized"
 		#print(string)
@@ -331,7 +308,10 @@ def main():
 	parser.add_argument('directory', metavar='directory')
 
 	args = parser.parse_args()
-	images = sorted([os.path.join(args.directory, filename) for filename in os.listdir(args.directory)])
+	#images = sorted([os.path.join(args.directory, filename) for filename in os.listdir(args.directory)])
+	def is_image(filename):
+		return filename.endswith("jpg") or filename.endswith("jpeg") or filename.endswith("png") or filename.endswith("gif")
+	images = sorted([os.path.join(root, name) for root, dirs, files in os.walk(args.directory) for name in files if is_image(name)])
 	app = Application(images)
 	app.master.title('Yurimon reader')
 	app.update_screen()
