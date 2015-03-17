@@ -9,6 +9,8 @@ from multiprocessing import Process, Queue
 import queue # needed for multiprocessing.Queue singlas
 import argparse
 import textwrap
+from Archive import Zip, Rar, Tree
+import json
 
 tool = pyocr.get_available_tools()[0]
 
@@ -33,11 +35,18 @@ class Application(tk.Frame):
 	def __init__(self, images, master=None):
 		tk.Frame.__init__(self, master)
 		self.images = images
+		self.image_files = images.list()
 		if os.path.isfile("last_page"):
 			last_page = open("last_page", "r")
 			try:
-				self.current_page = int(last_page.read())
+				self.last_page_json = json.load(last_page)
+				self.current_page = self.last_page_json[self.images.path]
+			except KeyError:
+				self.last_page_json[self.images.path] = 0
+				self.current_page = 0
 			except:
+				self.last_page_json = dict()
+				self.last_page_json[self.images.path] = 0
 				self.current_page = 0
 			last_page.close()
 		else:
@@ -46,6 +55,7 @@ class Application(tk.Frame):
 		self.createWidgets()
 		self.current_page_oid = 0
 		self.current_page_image = None
+		self.current_page_file = None
 		self.drawing_box = False
 		self.box_oid = 0
 		self.box_coords = (0, 0, 0, 0)
@@ -201,12 +211,15 @@ class Application(tk.Frame):
 	def change_image(self, amount):
 		self.kill_lookup()
 		new_page = self.current_page + amount
-		if new_page < 0 or new_page > len(self.images) - 2:
+		if new_page < 0 or new_page > len(self.image_files) - 1:
 			return
 		self.clear_box()
 		self.current_page = new_page
-		self.master.title("Yurumon reader (%d/%d)" % (new_page, len(self.images)))
-		image = Image.open(self.images[self.current_page])
+		self.master.title("Yurumon reader (%d/%d)" % (new_page + 1, len(self.image_files)))
+		if self.current_page_file is not None:
+			self.current_page_file.close()
+		self.current_page_file = self.images.open(self.image_files[new_page])
+		image = Image.open(self.current_page_file)
 		if self.rotation != 0:
 			image = image.rotate(-90 * self.rotation)
 		(width, height) = (self.frame.winfo_width(), self.frame.winfo_height())
@@ -216,7 +229,8 @@ class Application(tk.Frame):
 		self.current_page_oid = self.frame.create_image(int(width/2), int(height/2), image=self.tkimage)
 		self.current_page_image = image
 		last_page = open("last_page", "w")
-		last_page.write(str(self.current_page))
+		self.last_page_json[self.images.path] = new_page
+		json.dump(self.last_page_json, last_page)
 		last_page.close()
 	
 	
@@ -228,9 +242,14 @@ class Application(tk.Frame):
 		
 	def image_to_dict(self, image):
 		bid = self.box_oid
+		mode = 5
 		size = image.size
 		image = image.resize((size[0] * 3, size[1] * 3), Image.BICUBIC)
-		string = tool.image_to_string(image, lang="jpn", builder=pyocr.builders.TextBuilder(5))
+		if size[0] / size[1] < 1.15 and size[1] / size[0] < 1.15:
+			mode = 10
+		if size[0] > size[1] * 1.5:
+			mode = 7
+		string = tool.image_to_string(image, lang="jpn", builder=pyocr.builders.TextBuilder(mode))
 		string = string_filtered = "".join([c for c in string.strip() if c not in special_chars])
 		self.draw("Looking up " + string)
 		if string != "":
@@ -306,14 +325,21 @@ def parse_color_string(string):
 def main():
 	parser = argparse.ArgumentParser(description="OCR Manga Reader")
 	parser.add_argument('directory', metavar='directory')
-
+	
 	args = parser.parse_args()
+	if os.path.isdir(args.directory):
+		images = Tree(args.directory)
+	elif args.directory.lower().endswith("rar") and os.path.isfile(args.directory):
+		images = Rar(args.directory)
+	elif args.directory.lower().endswith("zip") and os.path.isfile(args.directory):
+		images = Zip(args.directory)
 	#images = sorted([os.path.join(args.directory, filename) for filename in os.listdir(args.directory)])
-	def is_image(filename):
-		return filename.endswith("jpg") or filename.endswith("jpeg") or filename.endswith("png") or filename.endswith("gif")
-	images = sorted([os.path.join(root, name) for root, dirs, files in os.walk(args.directory) for name in files if is_image(name)])
+		#def is_image(filename):
+		#	return filename.endswith("jpg") or filename.endswith("jpeg") or filename.endswith("png") or filename.endswith("gif")
+		#images = sorted([os.path.join(root, name) for root, dirs, files in os.walk(args.directory) for name in files if is_image(name)])
+	
 	app = Application(images)
-	app.master.title('Yurimon reader')
+	app.master.title('Yurumon reader')
 	app.update_screen()
 	app.mainloop()
 

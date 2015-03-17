@@ -7,6 +7,8 @@ Dependencies
 - [pyocr] (https://github.com/jflesch/pyocr "pyocr")
   - only tested with tesseract
 - [myougiden](https://github.com/leoboiko/myougiden "myougiden") 
+- [rarfile](https://github.com/markokr/rarfile "rarfile")
+
 
 Screenshots
 -----------
