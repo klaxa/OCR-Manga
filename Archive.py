@@ -3,6 +3,7 @@
 from abc import ABCMeta, abstractmethod
 import rarfile
 from io import BytesIO
+import os
 
 class Archive(metaclass=ABCMeta):
 	@abstractmethod
@@ -47,12 +48,11 @@ class Zip(Archive):
 
 class Tree(Archive):
 	def __init__(self, dirname):
-		self.dir = dirname
-		self.path = filename
+		self.path = dirname
 	
 	def list(self):
-		return sorted([os.path.join(args.directory, filename) for filename in os.listdir(args.directory) if is_image(filename)])
+		return sorted([os.path.join(self.path, filename) for filename in os.listdir(self.path) if is_image(filename)])
 	
 	def open(self, filename):
-		image = open(filename, "r")
+		image = open(filename, "rb")
 		return image
