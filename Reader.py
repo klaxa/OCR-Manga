@@ -50,6 +50,8 @@ class Application(tk.Frame):
 				self.current_page = 0
 			last_page.close()
 		else:
+			self.last_page_json = dict()
+			self.last_page_json[self.images.path] = 0
 			self.current_page = 0
 		self.pack(fill=tk.BOTH, expand=1)
 		self.createWidgets()
