@@ -30,7 +30,7 @@ class ConstMixin(object):
         return self.tool.image_to_string(image, lang=lang,
                                          builder=builder)
 
-    def best_fit(width, height, image):
+    def best_fit(self, width, height, image):
         (x, y) = image.size
         scale = width / x
         if y * scale > height:
