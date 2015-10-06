@@ -12,28 +12,34 @@ import textwrap
 from Archive import Zip, Rar, Tree
 import json
 
-tool = pyocr.get_available_tools()[0]
 
-special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
-colors = dict()
-colors["0"] = "#ffffff"
-colors["31"] = "#cd0000"
-colors["32"] = "#00cd00"
-colors["33"] = "#cdcd00"
-colors["35"] = "#cd00cd"
-colors["36"] = "#00cdcd"
+class ConstMixin(object):
+
+    def __init__(self):
+        self.tool = pyocr.get_available_tools()[0]
+
+        self.special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
+        self.colors = {'0': '#ffffff',
+                       '31': '#cd0000',
+                       '32': '#00cd00',
+                       '33': '#cdcd00',
+                       '35': '#cd00cd',
+                       '36': '#00cdcd'}
+
+    def image_to_string(self, image, lang="jpn", builder=None):
+        return self.tool.image_to_string(image, lang=lang,
+                                         builder=builder)
+
+    def best_fit(width, height, image):
+        (x, y) = image.size
+        scale = width / x
+        if y * scale > height:
+            scale = height / y
+        # print(scale)
+        return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
 
 
-def best_fit(width, height, image):
-    (x, y) = image.size
-    scale = width / x
-    if y * scale > height:
-        scale = height / y
-    # print(scale)
-    return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
-
-
-class Application(tk.Frame):
+class Application(tk.Frame, ConstMixin):
 
     def __init__(self, images, master=None):
         tk.Frame.__init__(self, master)
@@ -236,7 +242,7 @@ class Application(tk.Frame):
         if self.rotation != 0:
             image = image.rotate(-90 * self.rotation)
         (width, height) = (self.frame.winfo_width(), self.frame.winfo_height())
-        image = best_fit(width, height, image)
+        image = self.best_fit(width, height, image)
         self.tkimage = ImageTk.PhotoImage(image)
         self.frame.delete(self.current_page_oid)
         self.current_page_oid = self.frame.create_image(int(width/2),
@@ -263,7 +269,7 @@ class Application(tk.Frame):
             mode = 10
         if size[0] > size[1] * 1.5:
             mode = 7
-        string = tool.image_to_string(image, lang="jpn",
+        string = self.image_to_string(image, lang="jpn",
                                       builder=pyocr.builders.TextBuilder(mode))
         string = string_filtered = "".join([c for c in string.strip()
                                             if c not in special_chars])
@@ -335,13 +341,13 @@ def parse_color_string(string):
             if len(text) == 0:
                 continue
             try:
-                color_tuples.append((colors[color], text))
+                color_tuples.append((self.colors[color], text))
             except KeyError:
-                color_tuples.append((colors["0"], text))
+                color_tuples.append((self.colors["0"], text))
         else:
             if len(part) == 0:
                 continue
-            color_tuples.append((colors["0"], part))
+            color_tuples.append((self.colors["0"], part))
     return color_tuples
 
 
