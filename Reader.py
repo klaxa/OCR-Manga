@@ -68,7 +68,7 @@ class Application(tk.Frame):
 		self.text = []
 		self.draw_queue = Queue()
 		self.after(100, self.check_queue)
-	
+
 	def kill_lookup(self):
 		if self.lookup is not None and self.lookup.is_alive():
 			try:
@@ -76,7 +76,7 @@ class Application(tk.Frame):
 			except:
 		#self.frame.delete("selection")
 				pass
-	
+
 	def check_queue(self):
 		lookup = ""
 		try:
@@ -87,16 +87,16 @@ class Application(tk.Frame):
 			self.clear_box()
 			self.draw_dict(lookup)
 		self.after(100, self.check_queue)
-	
+
 	def lookup_entry(self, image, coords):
 		ocr_image = image.crop(coords)
 		string = self.image_to_dict(ocr_image)
 		if string is not None:
 			self.draw(string)
-	
+
 	def draw(self, string):
 		self.draw_queue.put(string)
-		
+
 	def createWidgets(self):
 		#self.quitButton = tk.Button(self, text='Quit',
 		#	command=self.quit)
@@ -117,37 +117,37 @@ class Application(tk.Frame):
 		self.frame.bind('<Button-3>', self.side_tap)
 		self.frame.bind('<Motion>', self.draw_box)
 		self.frame.bind('<F11>', self.toggle_fullscreen)
-	
+
 	def toggle_fullscreen(self, event=None):
 		self.fullscreen = not self.fullscreen  # Just toggling the boolean
 		self.master.attributes("-fullscreen", self.fullscreen)
 		self.update_screen()
-	
+
 	def side_tap(self, event):
 		if event.x < (self.frame.winfo_width() / 2):
 			self.change_image(1)
 		else:
 			self.change_image(-1)
-	
+
 	def resize_event(self, event):
 		self.frame.width = event.width   #>>>854
 		self.frame.height = event.height #>>>404
 		self.frame.config(width=self.frame.width, height=self.frame.height)
 		self.update_screen()
-	
+
 	def update_screen(self):
 		self.change_image(0)
-	
+
 	def rotate(self, event):
 		self.rotation = (self.rotation + 1) % 4
 		self.update_screen()
-	
+
 	def clear_box(self, event=None):
-		self.drawing_box = False		
+		self.drawing_box = False
 		#if self.box_oid != 0:
 		#	self.frame.delete(self.box_oid)
 		self.frame.delete("text")
-	
+
 	def start_drawing_box(self, event):
 		self.kill_lookup()
 		textbox = self.frame.bbox("text")
@@ -162,7 +162,7 @@ class Application(tk.Frame):
 					if self.box_oid != 0:
 						self.frame.delete(self.box_oid)
 					return
-		
+
 		self.drawing_box = True
 		x = event.x
 		y = event.y
@@ -171,7 +171,7 @@ class Application(tk.Frame):
 			self.frame.delete(self.box_oid)
 		self.box_oid = self.frame.create_rectangle(x, y, x, y, fill="black", stipple="gray50")
 		self.frame.addtag_withtag("selection", self.box_oid)
-	
+
 	def stop_drawing_box(self, event):
 		self.drawing_box = False
 		try:
@@ -182,7 +182,7 @@ class Application(tk.Frame):
 			px2 = (bx2 - ix) / (ix2 - ix)
 			py2 = (by2 - iy)/ (iy2 - iy)
 			#print("%f, %f, %f, %f" % (px, py, px2, py2))
-	
+
 			(width, height) = self.current_page_image.size
 			cx = int(px * width)
 			cx2 = int(px2 * width)
@@ -197,9 +197,9 @@ class Application(tk.Frame):
 			#self.image_to_dict(ocr_image)
 		except:
 			pass
-		
-		
-		
+
+
+
 	def draw_box(self, event):
 		if not self.drawing_box:
 			return
@@ -209,7 +209,7 @@ class Application(tk.Frame):
 		self.box_coords = (x, y, x2, y2)
 		self.frame.delete(self.box_oid)
 		self.box_oid = self.frame.create_rectangle(x, y, x2, y2, outline="#00AA00", fill="#00AA00", stipple="gray50")
-	
+
 	def change_image(self, amount):
 		self.kill_lookup()
 		new_page = self.current_page + amount
@@ -234,14 +234,14 @@ class Application(tk.Frame):
 		self.last_page_json[self.images.path] = new_page
 		json.dump(self.last_page_json, last_page)
 		last_page.close()
-	
-	
+
+
 	def prev_image(self, event):
 		self.change_image(-1)
-	
+
 	def next_image(self, event):
 		self.change_image(1)
-		
+
 	def image_to_dict(self, image):
 		bid = self.box_oid
 		mode = 5
@@ -265,7 +265,7 @@ class Application(tk.Frame):
 			string = "Nothing recognized"
 		#print(string)
 		return textwrap.fill(string, 120, replace_whitespace=False, drop_whitespace=False)
-	
+
 	def draw_dict(self, string):
 		words = parse_color_string(string)
 		self.text = []
@@ -283,14 +283,14 @@ class Application(tk.Frame):
 					text = ""
 				else:
 					xoff = x2
-					
+
 			self.text.append(self.frame.create_text(margin + xoff, margin + yoff, fill=color, anchor=tk.NW, text=text, font="14"))
 			self.frame.addtag_withtag("text", self.text[-1])
 		(x, y, x2, y2) = self.frame.bbox("text")
 		self.textbox = self.frame.create_rectangle(x - 1, y - 1, x2, y2, fill="black", outline="white")
 		self.frame.addtag_withtag("text", self.textbox)
 		self.frame.tag_lower(self.textbox, self.text[0])
-		
+
 
 def parse_color_string(string):
 	escape = "\x1b"
@@ -327,7 +327,7 @@ def parse_color_string(string):
 def main():
 	parser = argparse.ArgumentParser(description="OCR Manga Reader")
 	parser.add_argument('directory', metavar='directory')
-	
+
 	args = parser.parse_args()
 	path = args.directory.lower()
 	if os.path.isdir(args.directory):
@@ -340,7 +340,7 @@ def main():
 		#def is_image(filename):
 		#	return filename.endswith("jpg") or filename.endswith("jpeg") or filename.endswith("png") or filename.endswith("gif")
 		#images = sorted([os.path.join(root, name) for root, dirs, files in os.walk(args.directory) for name in files if is_image(name)])
-	
+
 	app = Application(images)
 	app.master.title('Yurumon reader')
 	app.update_screen()
@@ -348,5 +348,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
-
