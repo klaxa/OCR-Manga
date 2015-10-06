@@ -341,13 +341,13 @@ def parse_color_string(string):
             if len(text) == 0:
                 continue
             try:
-                color_tuples.append((colors[color], text))
+                color_tuples.append((self.colors[color], text))
             except KeyError:
-                color_tuples.append((colors["0"], text))
+                color_tuples.append((self.colors["0"], text))
         else:
             if len(part) == 0:
                 continue
-            color_tuples.append((colors["0"], part))
+            color_tuples.append((self.colors["0"], part))
     return color_tuples
 
 
