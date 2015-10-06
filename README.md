@@ -31,6 +31,18 @@ Install pip, Tk, and Tesseract:
 
 `sudo pacman -S python-pip tk tesseract tesseract-data-jpn`
 
+
+Gentoo
+------
+
+Make sure you have `tk` in your USE flags for Python 3. You'll also need to
+either have `jp` in your LINGUAS or specify `linguas_jp` as an USE flag for
+Tesseract.
+
+Install pip and Tesseract:
+
+`sudo emerge -a dev-python/pip app-lang/tesseract`
+
 Install various python modules:
 -------------------------------
 
