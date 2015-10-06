@@ -2,6 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 import rarfile
+import zipfile
 from io import BytesIO
 import os
 
@@ -42,7 +43,7 @@ class Zip(Archive):
 	def open(self, filename):
 		imagefile = self.zip.open(filename)
 		image = BytesIO()
-		image.write(imagefile.reader())
+		image.write(imagefile.read())
 		image.seek(0)
 		return image
 
