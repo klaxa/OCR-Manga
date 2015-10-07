@@ -12,34 +12,16 @@ import textwrap
 from Archive import Zip, Rar, Tree
 import json
 
+tool = pyocr.get_available_tools()[0]
+special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
+colors = {'0': '#ffffff',
+               '31': '#cd0000',
+               '32': '#00cd00',
+               '33': '#cdcd00',
+               '35': '#cd00cd',
+               '36': '#00cdcd'}
 
-class ConstMixin(object):
-
-    def __init__(self):
-        self.tool = pyocr.get_available_tools()[0]
-
-        self.special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
-        self.colors = {'0': '#ffffff',
-                       '31': '#cd0000',
-                       '32': '#00cd00',
-                       '33': '#cdcd00',
-                       '35': '#cd00cd',
-                       '36': '#00cdcd'}
-
-    def image_to_string(self, image, lang="jpn", builder=None):
-        return self.tool.image_to_string(image, lang=lang,
-                                         builder=builder)
-
-    def best_fit(self, width, height, image):
-        (x, y) = image.size
-        scale = width / x
-        if y * scale > height:
-            scale = height / y
-        # print(scale)
-        return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
-
-
-class Application(tk.Frame, ConstMixin):
+class Application(tk.Frame):
 
     def __init__(self, images, master=None):
         tk.Frame.__init__(self, master)
@@ -62,6 +44,7 @@ class Application(tk.Frame, ConstMixin):
             self.last_page_json = dict()
             self.last_page_json[self.images.path] = 0
             self.current_page = 0
+
         self.pack(fill=tk.BOTH, expand=1)
         self.createWidgets()
         self.current_page_oid = 0
@@ -77,6 +60,18 @@ class Application(tk.Frame, ConstMixin):
         self.text = []
         self.draw_queue = Queue()
         self.after(100, self.check_queue)
+
+    def image_to_string(self, image, lang="jpn", builder=None):
+        return tool.image_to_string(image, lang=lang,
+                                         builder=builder)
+
+    def best_fit(self, width, height, image):
+        (x, y) = image.size
+        scale = width / x
+        if y * scale > height:
+            scale = height / y
+        # print(scale)
+        return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
 
     def kill_lookup(self):
         if self.lookup is not None and self.lookup.is_alive():
@@ -288,7 +283,7 @@ class Application(tk.Frame, ConstMixin):
                              drop_whitespace=False)
 
     def draw_dict(self, string):
-        words = parse_color_string(string)
+        words = self.parse_color_string(string)
         self.text = []
         margin = 5
         xoff = 0
@@ -317,39 +312,37 @@ class Application(tk.Frame, ConstMixin):
         self.frame.addtag_withtag("text", self.textbox)
         self.frame.tag_lower(self.textbox, self.text[0])
 
-
-def parse_color_string(string):
-    escape = "\x1b"
-    parts = string.split(escape)
-    color_tuples = []
-    new_parts = []
-    for part in parts:
-        if "\n" in part:
-            more_parts = part.split("\n")
-            for p in more_parts:
-                if p != "":
-                    new_parts.append(p)
-                    new_parts.append("\n")
-        else:
-            new_parts.append(part)
-    parts = new_parts
-    for part in parts:
-        if part.startswith("["):
-            temp = part.split("m")
-            color = temp[0].strip("[")
-            text = "m".join(temp[1:])
-            if len(text) == 0:
-                continue
-            try:
-                color_tuples.append((self.colors[color], text))
-            except KeyError:
-                color_tuples.append((self.colors["0"], text))
-        else:
-            if len(part) == 0:
-                continue
-            color_tuples.append((self.colors["0"], part))
-    return color_tuples
-
+    def parse_color_string(self, string):
+        escape = "\x1b"
+        parts = string.split(escape)
+        color_tuples = []
+        new_parts = []
+        for part in parts:
+            if "\n" in part:
+                more_parts = part.split("\n")
+                for p in more_parts:
+                    if p != "":
+                        new_parts.append(p)
+                        new_parts.append("\n")
+            else:
+                new_parts.append(part)
+        parts = new_parts
+        for part in parts:
+            if part.startswith("["):
+                temp = part.split("m")
+                color = temp[0].strip("[")
+                text = "m".join(temp[1:])
+                if len(text) == 0:
+                    continue
+                try:
+                    color_tuples.append((colors[color], text))
+                except KeyError:
+                    color_tuples.append((colors["0"], text))
+            else:
+                if len(part) == 0:
+                    continue
+                color_tuples.append((colors["0"], part))
+        return color_tuples
 
 def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")
