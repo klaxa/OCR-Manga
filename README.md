@@ -54,6 +54,11 @@ Install various python modules:
 
 The manga can be a zip, rar, or just a plain old directory.
 
+## Contributions
+
+Contributions are welcomed and accepted. It is required that all pull
+requests be [PEP 0008](https://www.python.org/dev/peps/pep-0008) formatted.
+
 ## Screenshots
 
 ![Screenshot of Yurumon](http://dedi.klaxa.eu/public/yurumon_ocr.jpg)

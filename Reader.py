@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 
-from Archive import Tree, Rar, Zip
 import argparse
 import json
 from multiprocessing import Process, Queue
-import myougiden_api
 import os
-from PIL import Image, ImageTk
-import pyocr
-import pyocr.builders
-import queue  # needed for multiprocessing.Queue singlas
+import queue    # needed for multiprocessing.Queue singlas
 import textwrap
 import tkinter as tk
+
+from PIL import Image, ImageTk
+import myougiden_api
+import pyocr
+import pyocr.builders
+
+from Archive import Tree, Rar, Zip
 
 tool = pyocr.get_available_tools()[0]
 special_chars = "{}[]!\"§$%&/()\n\\.,-~\' "
@@ -21,6 +23,7 @@ colors = {'0': '#ffffff',
                '33': '#cdcd00',
                '35': '#cd00cd',
                '36': '#00cdcd'}
+
 
 class Application(tk.Frame):
 
@@ -212,8 +215,7 @@ class Application(tk.Frame):
                              drop_whitespace=False)
 
     def image_to_string(self, image, lang="jpn", builder=None):
-        return tool.image_to_string(image, lang=lang,
-                                         builder=builder)
+        return tool.image_to_string(image, lang=lang, builder=builder)
 
     def kill_lookup(self):
         if self.lookup is not None and self.lookup.is_alive():
@@ -344,6 +346,7 @@ class Application(tk.Frame):
 
     def update_screen(self):
         self.change_image(0)
+
 
 def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")

@@ -2,10 +2,20 @@
 
 import argparse
 import re
-import romkan
 import sys
 
-from myougiden import color, common, config, database, orm, search, texttools as tt
+import romkan
+
+from myougiden import (
+    color,
+    common,
+    config,
+    database,
+    orm,
+    search,
+    texttools as tt
+)
+
 
 def run(query):
     ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
