@@ -1,18 +1,11 @@
 #!/usr/bin/env python3
+
 import argparse
-import sys
 import re
 import romkan
+import sys
 
-from myougiden import config
-from myougiden import color
-from myougiden import database
-from myougiden import orm
-from myougiden import common
-from myougiden import texttools as tt
-from myougiden import search
-from myougiden.color import fmt
-
+from myougiden import color, common, config, database, orm, search, texttools as tt
 
 def run(query):
     ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)

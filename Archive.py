@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
 from abc import ABCMeta, abstractmethod
-import rarfile
-import zipfile
 from io import BytesIO
 import os
+import rarfile
+import zipfile
 
+def is_image(filename):
+    return filename.lower().endswith("jpg") or \
+        filename.lower().endswith("jpeg") or \
+        filename.lower().endswith("png") or \
+        filename.lower().endswith("gif")
 
 class Archive(metaclass=ABCMeta):
     @abstractmethod
@@ -15,14 +20,6 @@ class Archive(metaclass=ABCMeta):
     @abstractmethod
     def open(self, filename):
         pass
-
-
-def is_image(filename):
-    return filename.lower().endswith("jpg") or \
-        filename.lower().endswith("jpeg") or \
-        filename.lower().endswith("png") or \
-        filename.lower().endswith("gif")
-
 
 class Rar(Archive):
     def __init__(self, filename):
@@ -40,6 +37,18 @@ class Rar(Archive):
         image.seek(0)
         return image
 
+class Tree(Archive):
+    def __init__(self, dirname):
+        self.path = dirname
+
+    def list(self):
+        return sorted([os.path.join(self.path, filename)
+                       for filename in os.listdir(self.path)
+                       if is_image(filename)])
+
+    def open(self, filename):
+        image = open(filename, "rb")
+        return image
 
 class Zip(Archive):
     def __init__(self, filename):
@@ -54,18 +63,4 @@ class Zip(Archive):
         image = BytesIO()
         image.write(imagefile.read())
         image.seek(0)
-        return image
-
-
-class Tree(Archive):
-    def __init__(self, dirname):
-        self.path = dirname
-
-    def list(self):
-        return sorted([os.path.join(self.path, filename)
-                       for filename in os.listdir(self.path)
-                       if is_image(filename)])
-
-    def open(self, filename):
-        image = open(filename, "rb")
         return image
