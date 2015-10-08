@@ -7,8 +7,10 @@ import os
 import queue    # needed for multiprocessing.Queue singlas
 import textwrap
 import tkinter as tk
+import sys
 
 from PIL import Image, ImageTk
+import magic
 import myougiden_api
 import pyocr
 import pyocr.builders
@@ -350,26 +352,31 @@ class Application(tk.Frame):
 
 def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")
-    parser.add_argument('directory', metavar='directory')
+    parser.add_argument('mangafile', metavar='file', help="a .cbz/.zip, "
+                        ".cbr/.rar, or directory containing your manga")
 
     args = parser.parse_args()
-    path = args.directory.lower()
-    if os.path.isdir(args.directory):
-        images = Tree(args.directory)
-    elif ((path.endswith("rar") or path.endswith("cbr")) and
-          os.path.isfile(args.directory)):
-        images = Rar(args.directory)
-    elif ((path.endswith("zip") or path.endswith("cbz")) and
-          os.path.isfile(args.directory)):
-        images = Zip(args.directory)
-    # images = sorted([os.path.join(args.directory, filename)
-    #                  for filename in os.listdir(args.directory)])
-        # def is_image(filename):
-        #    return filename.endswith("jpg") or filename.endswith("jpeg")
-        #           or filename.endswith("png") or filename.endswith("gif")
-        # images = sorted([os.path.join(root, name) for root, dirs,
-        #                  files in os.walk(args.directory)
-        #                  for name in files if is_image(name)])
+    path = args.mangafile.lower()
+
+    filename = args.mangafile
+
+    try:
+        filetype = str(magic.from_file(filename))
+    except OSError:
+        print("Error: file '%s' does not exist!" % filename)
+        sys.exit()
+
+    if "directory" in filetype:
+        images = Tree(args.mangafile)
+    elif "Zip archive data" in filetype:
+        images = Zip(args.mangafile)
+    elif "RAR archive data" in filetype:
+        images = Rar(args.mangafile)
+    else:
+        print("Error: Unsupported filetype for '%s'\n"
+              "Please specify a valid .cbz/.zip, .cbr/.rar, or directory."
+              % filename)
+        sys.exit()
 
     app = Application(images)
     app.master.title('OCR Manga Reader')

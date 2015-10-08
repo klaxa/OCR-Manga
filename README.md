@@ -13,6 +13,7 @@ OCR-Manga has a few dependencies you will need:
     in their package repositories.
 - [pillow](https://github.com/python-pillow/Pillow)
 - [pyocr](https://github.com/jflesch/pyocr)
+- [magic](https://github.com/ahupp/python-magic)
 - [myougiden](https://github.com/leoboiko/myougiden)
 - [rarfile](https://github.com/markokr/rarfile)
 
@@ -46,7 +47,7 @@ Install pip and Tesseract:
 Install various python modules:
 -------------------------------
 
-`sudo pip install pillow pyocr myougiden rarfile`
+`sudo pip install pillow pyocr python-magic myougiden rarfile`
 
 ## Usage
 
