@@ -37,8 +37,7 @@ Gentoo
 ------
 
 Make sure you have `tk` in your USE flags for Python 3. You'll also need to
-either have `ja` in your LINGUAS or specify `linguas_ja` as an USE flag for
-Tesseract.
+either have `ja` in your L10N or specify `l10n_ja` as an USE flag for Tesseract.
 
 Install pip and Tesseract:
 
