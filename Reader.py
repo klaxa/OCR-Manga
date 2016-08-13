@@ -73,7 +73,13 @@ class Application(tk.Frame):
         if y * scale > height:
             scale = height / y
         # print(scale)
-        return image.resize((int(x * scale), int(y * scale)), Image.BILINEAR)
+        new_x = int(x * scale)
+        new_y = int(y * scale)
+        if new_x <= 0:
+            new_x = 1
+        if new_y <= 0:
+            new_y = 1
+        return image.resize((new_x, new_y), Image.BILINEAR)
 
     def change_image(self, amount):
         self.kill_lookup()
