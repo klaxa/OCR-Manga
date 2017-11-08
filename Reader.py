@@ -359,22 +359,25 @@ def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")
     parser.add_argument('mangafile', metavar='file', help="a .cbz/.zip, "
                         ".cbr/.rar, or directory containing your manga")
-
     args = parser.parse_args()
     path = args.mangafile.lower()
-
     filename = args.mangafile
+    
+    dir_check = os.path.isdir(filename)
+    if dir_check:
+        filetype = "Directory"
 
-    try:
-        filetype = str(magic.from_file(filename))
-    except OSError:
-        print("Error: file '%s' does not exist!" % filename)
-        sys.exit()
+    if not dir_check:
+        try:
+            filetype = str(magic.from_file(filename))
+        except OSError:
+            print("Error: file '%s' does not exist!" % filename)
+            sys.exit()
 
-    if "directory" in filetype:
+    if filetype == "Directory":
         images = Tree(args.mangafile)
     elif "Zip archive data" in filetype:
-        images = Zip(args.mangafile)
+        images = Zip(args.mangafile) 
     elif "RAR archive data" in filetype:
         images = Rar(args.mangafile)
     else:
