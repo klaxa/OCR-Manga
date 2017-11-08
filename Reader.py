@@ -131,9 +131,8 @@ class Application(tk.Frame):
         #                             command=self.quit)
         # self.quitButton.grid()
         self.update()
-        (width, height) = (self.winfo_width(), self.winfo_height())
-        self.frame = tk.Canvas(self, width=width,
-                               height=height, cursor="tcross",
+        self.frame = tk.Canvas(self, width=500,
+                               height=500, cursor="tcross",
                                background="black", highlightthickness=0)
         self.frame.pack(fill=tk.BOTH, expand=1)
         self.frame.bind('<Left>', self.next_image)
