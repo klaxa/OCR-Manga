@@ -131,9 +131,8 @@ class Application(tk.Frame):
         #                             command=self.quit)
         # self.quitButton.grid()
         self.update()
-        (width, height) = (self.winfo_width(), self.winfo_height())
-        self.frame = tk.Canvas(self, width=width,
-                               height=height, cursor="tcross",
+        self.frame = tk.Canvas(self, width=500,
+                               height=500, cursor="tcross",
                                background="black", highlightthickness=0)
         self.frame.pack(fill=tk.BOTH, expand=1)
         self.frame.bind('<Left>', self.next_image)
@@ -359,28 +358,31 @@ class Application(tk.Frame):
 def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")
     parser.add_argument('mangafile', metavar='file', help="a .cbz/.zip, "
-                        ".cbr/.rar, or directory containing your manga")
-
+                        ".cbr/.rar, .tar, or directory containing your manga")
     args = parser.parse_args()
     path = args.mangafile.lower()
-
     filename = args.mangafile
+    
+    dir_check = os.path.isdir(filename)
+    if dir_check:
+        filetype = "Directory"
 
-    try:
-        filetype = str(magic.from_file(filename))
-    except OSError:
-        print("Error: file '%s' does not exist!" % filename)
-        sys.exit()
+    if not dir_check:
+        try:
+            filetype = str(magic.from_file(filename))
+        except OSError:
+            print("Error: file '%s' does not exist!" % filename)
+            sys.exit()
 
-    if "directory" in filetype:
+    if filetype == "Directory":
         images = Tree(args.mangafile)
-    elif "Zip archive data" in filetype:
+    elif "Zip archive data" in filetype or "tar archive" in filetype:
         images = Zip(args.mangafile)
     elif "RAR archive data" in filetype:
         images = Rar(args.mangafile)
     else:
         print("Error: Unsupported filetype for '%s'\n"
-              "Please specify a valid .cbz/.zip, .cbr/.rar, or directory."
+              "Please specify a valid .cbz/.zip, .cbr/.rar, .tar, or directory."
               % filename)
         sys.exit()
 
