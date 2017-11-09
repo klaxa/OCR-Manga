@@ -358,7 +358,7 @@ class Application(tk.Frame):
 def main():
     parser = argparse.ArgumentParser(description="OCR Manga Reader")
     parser.add_argument('mangafile', metavar='file', help="a .cbz/.zip, "
-                        ".cbr/.rar, or directory containing your manga")
+                        ".cbr/.rar, .tar, or directory containing your manga")
     args = parser.parse_args()
     path = args.mangafile.lower()
     filename = args.mangafile
@@ -376,13 +376,13 @@ def main():
 
     if filetype == "Directory":
         images = Tree(args.mangafile)
-    elif "Zip archive data" in filetype:
-        images = Zip(args.mangafile) 
+    elif "Zip archive data" in filetype or "tar archive" in filetype:
+        images = Zip(args.mangafile)
     elif "RAR archive data" in filetype:
         images = Rar(args.mangafile)
     else:
         print("Error: Unsupported filetype for '%s'\n"
-              "Please specify a valid .cbz/.zip, .cbr/.rar, or directory."
+              "Please specify a valid .cbz/.zip, .cbr/.rar, .tar, or directory."
               % filename)
         sys.exit()
 

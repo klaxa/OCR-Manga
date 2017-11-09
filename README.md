@@ -52,7 +52,7 @@ Install various python modules:
 
 `./Reader.py /path/to/manga`
 
-The manga can be a zip, rar, or just a plain old directory.
+The manga can be a zip, rar, tar, or just a plain old directory.
 
 ## Contributions
 
